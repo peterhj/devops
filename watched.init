@@ -1,0 +1,28 @@
+#!/sbin/openrc-run
+
+pidfile="/run/watched.pid"
+logfile="/var/log/watched.log"
+command="/opt/bin/watched"
+#command_args=""
+
+depend() {
+	after local
+}
+
+start() {
+	ebegin "Starting watched"
+	start-stop-daemon --start --background --make-pidfile \
+			  --pidfile "${pidfile}" \
+			  --stdout "${logfile}" \
+			  --stderr "${logfile}" \
+			  --exec "${command}" --
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping watched"
+	local pid
+	mapfile -t pid < "${pidfile}"
+	kill -s TERM "-${pid}"
+	eend $?
+}

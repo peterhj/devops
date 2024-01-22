@@ -1,0 +1,39 @@
+#!/sbin/openrc-run
+
+extra_started_commands="hup"
+#fname="${RC_SVCNAME%.*}"
+name="${RC_SVCNAME%%.*}"
+port="${RC_SVCNAME##*.}"
+altport="$((1-${port}))"
+#pidfile="/run/${RC_SVCNAME}.pid"
+pidfile="/run/${name}.${port}.pid"
+altpidfile="/run/${name}.${altport}.pid"
+logfile="/deploy/log/${RC_SVCNAME}.log"
+command="/deploy/bin/${name}.${port}"
+command_args="--svcname=${name} --svcport=${port}"
+
+start() {
+	ebegin "Starting ${RC_SVCNAME}"
+	start-stop-daemon --start --background --make-pidfile \
+			  --pidfile "${pidfile}" \
+			  --stdout "${logfile}" \
+			  --stderr "${logfile}" \
+			  --exec "${command}" -- "${command_args}"
+	eend $?
+}
+
+hup() {
+	ebegin "Hangup ${RC_SVCNAME}"
+	start-stop-daemon --signal HUP --pidfile "${pidfile}"
+	eend $?
+}
+
+stop_pre() {
+	hup
+}
+
+stop() {
+	ebegin "Stopping ${RC_SVCNAME}"
+	start-stop-daemon --stop --pidfile "${pidfile}"
+	eend $?
+}

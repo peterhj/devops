@@ -1,0 +1,17 @@
+#!/bin/bash
+set -o pipefail
+mapfile -t svcs < /etc/synced.conf
+# TODO: per-service dst
+dst="$(cat /etc/synced.dst)"
+echo "synced:  $(date)"
+echo "synced:  svcs = ${svcs[@]}"
+mkdir -p /build/dist
+chmod og+w /build/dist
+inotifywait -m -e close_write -e moved_to /build/dist/ |
+while read -r dir event name; do
+  echo "sync:    ${dir} ${event} ${name}"
+  if [[ " ${svcs[@]} " =~ " ${name} " ]]; then
+    echo "resync:  ${name}"
+    rsync -pt "/build/dist/${name}" "${dst}:/build/dist/"
+  fi
+done

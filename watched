@@ -1,0 +1,49 @@
+#!/bin/bash
+set -o pipefail
+mapfile -t svcs < /etc/watched.conf
+port=0
+altport=1
+echo "watched: $(date)"
+echo "watched: svcs = ${svcs[@]}"
+mkdir -p /build/dist
+chmod og+w /build/dist
+inotifywait -m -e close_write -e moved_to /build/dist/ |
+while read -r dir event name; do
+  echo "watch:   ${dir} ${event} ${name}"
+  if [[ " ${svcs[@]} " =~ " ${name} " ]]; then
+    echo "restart: ${name}"
+    pidfile="/run/${name}.${port}.pid"
+    altpidfile="/run/${name}.${altport}.pid"
+    command="/deploy/bin/${name}.${port}"
+    altcommand="/deploy/bin/${name}.${altport}"
+    if [ ! -e "${pidfile}" ]; then
+      echo "restart:   start port = ${port}"
+      cp -p "/build/dist/${name}" "${command}"
+      rc-service "${name}.${port}" zap start
+      echo "restart:   hup altport = ${altport}"
+      rc-service "${name}.${altport}" hup
+    elif [ ! -e "${altpidfile}" ]; then
+      echo "restart:   start altport = ${altport}"
+      cp -p "/build/dist/${name}" "${altcommand}"
+      rc-service "${name}.${altport}" zap start
+      echo "restart:   hup port = ${port}"
+      rc-service "${name}.${port}" hup
+    elif [ "${pidfile}" -ot "${altpidfile}" ]; then
+      echo "restart:   stop port = ${port}"
+      rc-service "${name}.${port}" stop
+      echo "restart:   start port = ${port}"
+      cp -p "/build/dist/${name}" "${command}"
+      rc-service "${name}.${port}" zap start
+      echo "restart:   hup altport = ${altport}"
+      rc-service "${name}.${altport}" hup
+    else
+      echo "restart:   stop altport = ${altport}"
+      rc-service "${name}.${altport}" stop
+      echo "restart:   start altport = ${altport}"
+      cp -p "/build/dist/${name}" "${altcommand}"
+      rc-service "${name}.${altport}" zap start
+      echo "restart:   hup port = ${port}"
+      rc-service "${name}.${port}" hup
+    fi
+  fi
+done

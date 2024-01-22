@@ -1,0 +1,23 @@
+#!/bin/bash
+mapfile -t svcs < /etc/watched.conf
+port=0
+altport=1
+for name in ${svcs[@]}; do
+  command="/deploy/bin/${name}.${port}"
+  altcommand="/deploy/bin/${name}.${altport}"
+  if [ -e "${command}" ]; then
+    if [ ! -e "${altcommand}" ]; then
+      rc-service "${name}.${port}" zap
+      rc-service "${name}.${port}" start
+    elif [ "${command}" -nt "${altcommand}" ]; then
+      rc-service "${name}.${port}" zap
+      rc-service "${name}.${port}" start
+    else
+      rc-service "${name}.${altport}" zap
+      rc-service "${name}.${altport}" start
+    fi
+  elif [ -e "${altcommand}" ]; then
+    rc-service "${name}.${altport}" zap
+    rc-service "${name}.${altport}" start
+  fi
+done

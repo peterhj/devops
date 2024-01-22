@@ -1,0 +1,28 @@
+#!/sbin/openrc-run
+
+pidfile="/run/synced.pid"
+logfile="/var/log/synced.log"
+command="/opt/bin/synced"
+#command_args=""
+
+depend() {
+	after local
+}
+
+start() {
+	ebegin "Starting synced"
+	start-stop-daemon --start --background --make-pidfile \
+			  --pidfile "${pidfile}" \
+			  --stdout "${logfile}" \
+			  --stderr "${logfile}" \
+			  --exec "${command}" --
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping synced"
+	local pid
+	mapfile -t pid < "${pidfile}"
+	kill -s TERM "-${pid}"
+	eend $?
+}
